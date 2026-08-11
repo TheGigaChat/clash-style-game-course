@@ -86,11 +86,11 @@ const redArcherAttackImage = createImage(
 const blueArrowImage = createImage(
   "Units/Blue Units/Archer/Arrow.png"
 );
-const blueCastleImage = createImage(
-  "Buildings/Blue Buildings/Castle.png"
+const blueTowerImage = createImage(
+  "Buildings/Blue Buildings/Tower.png"
 );
-const redCastleImage = createImage(
-  "Buildings/Red Buildings/Castle.png"
+const redTowerImage = createImage(
+  "Buildings/Red Buildings/Tower.png"
 );
 
 // DISPLAY AND DEBUG SETTINGS
@@ -337,12 +337,12 @@ class Tower {
       const towerLineY = menuHeight + lane * laneHeight;
       ctx.strokeRect(this.x + 4, towerLineY + 4, this.width - 8, laneHeight - 8);
     }
-    let towerImage = blueCastleImage;
+    let towerImage = blueTowerImage;
     if (this.team === redTeam) {
-      towerImage = redCastleImage;
+      towerImage = redTowerImage;
     }
-    const imageWidth = 150;
-    const imageHeight = 120;
+    const imageWidth = 128;
+    const imageHeight = 256;
     const imageX = this.x + this.width / 2 - imageWidth / 2;
     const imageY = menuHeight + (canvasHeight - menuHeight) / 2 - imageHeight / 2;
     if (towerImage.complete) {
