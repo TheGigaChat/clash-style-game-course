@@ -479,7 +479,7 @@ class Unit {
     }
   }
   draw() {
-    drawUnitShadow(this);
+    // drawUnitShadow(this);
     const imageInformation = getUnitImageInformation(this);
     if (imageInformation.image.complete) {
       drawUnitSprite(this, imageInformation);
