@@ -12,17 +12,21 @@ canvas.width = canvasWidth;
 canvas.height = canvasHeight;
 
 // GAME CONSTANTS
-// const blueTeam = "blue";
-// const warriorType = "warrior";
-// const archerType = "archer";
-// const warriorCost = 40;
-// const archerCost = 60;
+const blueTeam = "blue";
+const warriorType = "warrior";
+const archerType = "archer";
+const warriorCost = 40;
+const archerCost = 60;
+
+const cardY = 12
+const cardWidth = 112
+const cardHeight = 76
 
 // ACTIVE GAME OBJECTS
 const gameGrid = [];
 
 // GAME STATE
-// let selectedBlueType = warriorType;
+let selectedBlueType = warriorType;
 
 // MOUSE INPUT
 const mouse = {
@@ -66,25 +70,20 @@ canvas.addEventListener("mouseup", function () {
   mouse.clicked = false;
 });
 
-window.addEventListener("resize", function () {
-  canvasPosition = canvas.getBoundingClientRect();
-});
-
 // MENU AREAS
-// REBEILD no hardcode so much, because it will be difficult to add new cards
-// const blueWarriorCard = {
-//   x: 20,
-//   y: 12,
-//   width: 112,
-//   height: 76,
-// };
+const blueWarriorCard = {
+  x: 20,
+  y: cardY,
+  width: cardWidth,
+  height: cardHeight,
+};
 
-// const blueArcherCard = {
-//   x: 142,
-//   y: 12,
-//   width: 112,
-//   height: 76,
-// };
+const blueArcherCard = {
+  x: 142,
+  y: cardY,
+  width: cardWidth,
+  height: cardHeight,
+};
 
 // SMALL HELPER FUNCTIONS
 // function getLaneFromY(y) {
@@ -102,17 +101,17 @@ window.addEventListener("resize", function () {
 //   return lane;
 // }
 
-// function getUnitCost(type) {
-//   if (type === warriorType) {
-//     return warriorCost;
-//   }
+function getUnitCost(type) {
+  if (type === warriorType) {
+    return warriorCost;
+  }
 
-//   if (type === archerType) {
-//     return archerCost;
-//   }
+  if (type === archerType) {
+    return archerCost;
+  }
 
-//   return 0;
-// }
+  return 0;
+}
 
 function isPointInsideBox(point, box) {
   if (
@@ -208,62 +207,62 @@ function drawLaneLabels() {
 }
 
 // MENU
-// function drawCard(card, type, selected) {
-//   ctx.fillStyle = "rgba(12, 23, 38, 0.82)";
-//   ctx.fillRect(card.x, card.y, card.width, card.height);
+function drawCard(card, type, selected) {
+  ctx.fillStyle = "rgba(12, 23, 38, 0.82)";
+  ctx.fillRect(card.x, card.y, card.width, card.height);
 
-//   ctx.strokeStyle = "#71839b";
-//   ctx.lineWidth = 2;
+  ctx.strokeStyle = "#71839b";
+  ctx.lineWidth = 2;
 
-//   if (selected) {
-//     ctx.strokeStyle = "#ffd95c";
-//     ctx.lineWidth = 4;
-//   }
+  if (selected) {
+    ctx.strokeStyle = "#ffd95c";
+    ctx.lineWidth = 4;
+  }
+  
+  ctx.strokeRect(card.x, card.y, card.width, card.height);
 
-//   ctx.strokeRect(card.x, card.y, card.width, card.height);
+  if (type === warriorType) {
+    ctx.fillStyle = "#5f91d8";
+    ctx.fillRect(card.x + 10, card.y + 15, 38, 46);
+  }
 
-//   if (type === warriorType) {
-//     ctx.fillStyle = "#5f91d8";
-//     ctx.fillRect(card.x + 10, card.y + 15, 38, 46);
-//   }
+  if (type === archerType) {
+    ctx.fillStyle = "#75b86d";
+    ctx.beginPath();
+    ctx.arc(card.x + 29, card.y + 38, 21, 0, Math.PI * 2);
+    ctx.fill();
+  }
 
-//   if (type === archerType) {
-//     ctx.fillStyle = "#75b86d";
-//     ctx.beginPath();
-//     ctx.arc(card.x + 29, card.y + 38, 21, 0, Math.PI * 2);
-//     ctx.fill();
-//   }
+  ctx.fillStyle = "#ffffff";
+  ctx.textAlign = "left";
+  ctx.font = "bold 13px Arial";
 
-//   ctx.fillStyle = "#ffffff";
-//   ctx.textAlign = "left";
-//   ctx.font = "bold 13px Arial";
+  if (type === warriorType) {
+    ctx.fillText("Warrior", card.x + 55, card.y + 28);
+  }
 
-//   if (type === warriorType) {
-//     ctx.fillText("Warrior", card.x + 55, card.y + 28);
-//   }
+  if (type === archerType) {
+    ctx.fillText("Archer", card.x + 55, card.y + 28);
+  }
 
-//   if (type === archerType) {
-//     ctx.fillText("Archer", card.x + 55, card.y + 28);
-//   }
+  ctx.fillStyle = "#ffd95c";
+  ctx.font = "bold 14px Arial";
+  ctx.fillText(getUnitCost(type) + " gold", card.x + 55, card.y + 50);
+}
 
-//   ctx.fillStyle = "#ffd95c";
-//   ctx.font = "bold 14px Arial";
-//   ctx.fillText(getUnitCost(type) + " gold", card.x + 55, card.y + 50);
-// }
+function drawMenu() {
+  drawCard(
+    blueWarriorCard,
+    warriorType,
+    selectedBlueType === warriorType
+  );
 
-// function drawMenu() {
-//   drawCard(
-//     blueWarriorCard,
-//     warriorType,
-//     selectedBlueType === warriorType
-//   );
-
-//   drawCard(
-//     blueArcherCard,
-//     archerType,
-//     selectedBlueType === archerType
-//   );
-// }
+  drawCard(
+    blueArcherCard,
+    archerType,
+    selectedBlueType === archerType
+  );
+}
 
 // PLAYER INPUT
 // function handleCanvasClick() {
@@ -309,7 +308,7 @@ function animate() {
   ctx.clearRect(0, 0, canvasWidth, canvasHeight);
   drawBackground();
   handleGrid();
-  // drawMenu();
+  drawMenu();
   drawLaneLabels()
   requestAnimationFrame(animate);
 }
