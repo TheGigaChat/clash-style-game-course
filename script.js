@@ -11,8 +11,22 @@ const columnWidth = 100;
 canvas.width = canvasWidth;
 canvas.height = canvasHeight;
 
+// GAME CONSTANTS
+const blueTeam = "blue";
+const warriorType = "warrior";
+const archerType = "archer";
+const warriorCost = 40;
+const archerCost = 60;
+
+const cardY = 12
+const cardWidth = 112
+const cardHeight = 76
+
 // ACTIVE GAME OBJECTS
 const gameGrid = [];
+
+// GAME STATE
+let selectedBlueType = warriorType;
 
 // MOUSE INPUT
 const mouse = {
@@ -21,6 +35,55 @@ const mouse = {
   width: 1,
   height: 1,
   clicked: false,
+};
+
+let canvasPosition = canvas.getBoundingClientRect();
+// {
+//   left: 120,
+//   top: 80,
+//   width: 1000,
+//   height: 640,
+//   right: 1120,
+//   bottom: 720
+// }
+
+canvas.addEventListener("mousemove", function (event) {
+  canvasPosition = canvas.getBoundingClientRect();
+
+  const scaleX = canvas.width / canvasPosition.width;
+  const scaleY = canvas.height / canvasPosition.height;
+
+  mouse.x = (event.clientX - canvasPosition.left) * scaleX;
+  mouse.y = (event.clientY - canvasPosition.top) * scaleY;
+});
+
+canvas.addEventListener("mouseleave", function () {
+  mouse.x = undefined;
+  mouse.y = undefined;
+});
+
+canvas.addEventListener("mousedown", function () {
+  mouse.clicked = true;
+});
+
+canvas.addEventListener("mouseup", function () {
+  mouse.clicked = false;
+});
+
+
+// MENU AREAS
+const blueWarriorCard = {
+  x: 20,
+  y: cardY,
+  width: cardWidth,
+  height: cardHeight,
+};
+
+const blueArcherCard = {
+  x: 142,
+  y: cardY,
+  width: cardWidth,
+  height: cardHeight,
 };
 
 // SMALL HELPER FUNCTIONS
@@ -35,6 +98,18 @@ function isPointInsideBox(point, box) {
   }
 
   return false;
+}
+
+function getUnitCost(type) {
+  if (type === warriorType) {
+    return warriorCost;
+  }
+
+  if (type === archerType) {
+    return archerCost;
+  }
+
+  return 0;
 }
 
 // GRID
@@ -116,12 +191,71 @@ function drawLaneLabels() {
   }
 }
 
+// MENU
+function drawCard(card, type, selected) {
+  ctx.fillStyle = "rgba(12, 23, 38, 0.82)";
+  ctx.fillRect(card.x, card.y, card.width, card.height);
+
+  ctx.strokeStyle = "#71839b";
+  ctx.lineWidth = 2;
+
+  if (selected) {
+    ctx.strokeStyle = "#ffd95c";
+    ctx.lineWidth = 4;
+  }
+  
+  ctx.strokeRect(card.x, card.y, card.width, card.height);
+
+  if (type === warriorType) {
+    ctx.fillStyle = "#5f91d8";
+    ctx.fillRect(card.x + 10, card.y + 15, 38, 46);
+  }
+
+  if (type === archerType) {
+    ctx.fillStyle = "#75b86d";
+    ctx.beginPath();
+    ctx.arc(card.x + 29, card.y + 38, 21, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  ctx.fillStyle = "#ffffff";
+  ctx.textAlign = "left";
+  ctx.font = "bold 13px Arial";
+
+  if (type === warriorType) {
+    ctx.fillText("Warrior", card.x + 55, card.y + 28);
+  }
+
+  if (type === archerType) {
+    ctx.fillText("Archer", card.x + 55, card.y + 28);
+  }
+
+  ctx.fillStyle = "#ffd95c";
+  ctx.font = "bold 14px Arial";
+  ctx.fillText(getUnitCost(type) + " gold", card.x + 55, card.y + 50);
+}
+
+function drawMenu() {
+  drawCard(
+    blueWarriorCard,
+    warriorType,
+    selectedBlueType === warriorType
+  );
+
+  drawCard(
+    blueArcherCard,
+    archerType,
+    selectedBlueType === archerType
+  );
+}
+
 
 // MAIN GAME LOOP
 function animate() {
   ctx.clearRect(0, 0, canvasWidth, canvasHeight);
   drawBackground()
   handleGrid()
+  drawMenu()
   drawLaneLabels()
   requestAnimationFrame(animate);
 }
