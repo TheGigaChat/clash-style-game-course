@@ -165,8 +165,6 @@ function handleGrid() {
   }
 }
 
-createGrid();
-
 // BACKGROUND
 function drawBackground() {
   ctx.fillStyle = "#91c968";
@@ -194,6 +192,7 @@ function drawBackground() {
   ctx.fillStyle = "#263951";
   ctx.fillRect(0, 0, canvasWidth, menuHeight);
 }
+
 
 function drawLaneLabels() {
   ctx.fillStyle = "rgba(22, 50, 28, 0.55)";
@@ -312,5 +311,5 @@ function animate() {
   drawLaneLabels()
   requestAnimationFrame(animate);
 }
-
-animate();
+createGrid()
+animate()
