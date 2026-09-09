@@ -18,9 +18,9 @@ const archerType = "archer";
 const warriorCost = 40;
 const archerCost = 60;
 
-const cardY = 12
-const cardWidth = 112
-const cardHeight = 76
+const cardY = 12;
+const cardWidth = 112;
+const cardHeight = 76;
 
 // ACTIVE GAME OBJECTS
 const gameGrid = [];
@@ -69,7 +69,6 @@ canvas.addEventListener("mousedown", function () {
 canvas.addEventListener("mouseup", function () {
   mouse.clicked = false;
 });
-
 
 // MENU AREAS
 const blueWarriorCard = {
@@ -179,7 +178,6 @@ function drawBackground() {
   ctx.fillRect(0, 0, canvasWidth, menuHeight);
 }
 
-
 function drawLaneLabels() {
   ctx.fillStyle = "rgba(22, 50, 28, 0.55)";
   ctx.font = "bold 20px Arial";
@@ -249,15 +247,14 @@ function drawMenu() {
   );
 }
 
-
 // MAIN GAME LOOP
 function animate() {
   ctx.clearRect(0, 0, canvasWidth, canvasHeight);
-  drawBackground()
-  handleGrid()
-  drawMenu()
-  drawLaneLabels()
+  drawBackground();
+  handleGrid();
+  drawMenu();
+  drawLaneLabels();
   requestAnimationFrame(animate);
 }
-createGrid()
-animate()
+createGrid();
+animate();
