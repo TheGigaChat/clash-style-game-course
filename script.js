@@ -300,7 +300,7 @@ function handleCanvasClick() {
   }
 }
 
-// canvas.addEventListener("click", handleCanvasClick);
+canvas.addEventListener("click", handleCanvasClick);
 
 // MAIN GAME LOOP
 function animate() {
