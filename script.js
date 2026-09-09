@@ -86,20 +86,20 @@ const blueArcherCard = {
 };
 
 // SMALL HELPER FUNCTIONS
-// function getLaneFromY(y) {
-//   if (y < menuHeight) {
-//     return -1;
-//   }
+function getLaneFromY(y) {
+  if (y < menuHeight) {
+    return -1;
+  }
 
-//   const gridPositionY = y - ((y - menuHeight) % laneHeight);
-//   const lane = (gridPositionY - menuHeight) / laneHeight;
+  const gridPositionY = y - ((y - menuHeight) % laneHeight);
+  const lane = (gridPositionY - menuHeight) / laneHeight;
 
-//   if (lane < 0 || lane >= laneCount) {
-//     return -1;
-//   }
+  if (lane < 0 || lane >= laneCount) {
+    return -1;
+  }
 
-//   return lane;
-// }
+  return lane;
+}
 
 function getUnitCost(type) {
   if (type === warriorType) {
@@ -265,41 +265,41 @@ function drawMenu() {
 }
 
 // PLAYER INPUT
-// function handleCanvasClick() {
-//   if (mouse.x === undefined || mouse.y === undefined) {
-//     return;
-//   }
+function handleCanvasClick() {
+  if (mouse.x === undefined || mouse.y === undefined) {
+    return;
+  }
 
-//   if (isPointInsideBox(mouse, blueWarriorCard)) {
-//     selectedBlueType = warriorType;
-//     return;
-//   }
+  if (isPointInsideBox(mouse, blueWarriorCard)) {
+    selectedBlueType = warriorType;
+    return;
+  }
 
-//   if (isPointInsideBox(mouse, blueArcherCard)) {
-//     selectedBlueType = archerType;
-//     return;
-//   }
+  if (isPointInsideBox(mouse, blueArcherCard)) {
+    selectedBlueType = archerType;
+    return;
+  }
 
-//   if (mouse.y < menuHeight) {
-//     return;
-//   }
+  if (mouse.y < menuHeight) {
+    return;
+  }
 
-//   if (mouse.x < 0 || mouse.x >= canvasWidth / 2) {
-//     return;
-//   }
+  if (mouse.x < 0 || mouse.x >= canvasWidth / 2) {
+    return;
+  }
 
-//   const gridPositionX = mouse.x - (mouse.x % columnWidth);
-//   const lane = getLaneFromY(mouse.y);
+  const gridPositionX = mouse.x - (mouse.x % columnWidth);
+  const lane = getLaneFromY(mouse.y);
 
-//   if (lane !== -1) {
-//     console.log({
-//       team: blueTeam,
-//       type: selectedBlueType,
-//       lane: lane,
-//       column: gridPositionX / columnWidth,
-//     });
-//   }
-// }
+  if (lane !== -1) {
+    console.log({
+      team: blueTeam,
+      type: selectedBlueType,
+      lane: lane,
+      column: gridPositionX / columnWidth,
+    });
+  }
+}
 
 // canvas.addEventListener("click", handleCanvasClick);
 
