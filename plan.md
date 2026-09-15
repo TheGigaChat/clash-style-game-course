@@ -357,17 +357,16 @@ prints the intended unit type and lane for now.
 
 1. Add a `mouse` object with `x`, `y`, `width`, `height`, and `clicked`.
 2. Read `canvas.getBoundingClientRect()` and correct mouse coordinates.
-3. Refresh the canvas rectangle on window resize.
-4. Create a `Cell` class containing position, size, row, and column.
-5. Write `createGrid()` with one loop for three rows and another for columns.
-6. Do not create grid cells inside the menu bar.
-7. Write `handleGrid()` to draw hover outlines and the center dividing line.
-8. Create plain card objects for Warrior and Archer.
-9. Draw card names, temporary colored icons, and costs in `drawMenu()`.
-10. Add `selectedBlueType` and change it when a card is clicked.
-11. Convert a battlefield click into lane `0`, `1`, or `2`.
-12. Reject clicks in the menu, on the red half, and outside the canvas.
-13. Temporarily log `{ team, type, lane }` to confirm input.
+3. Create a `Cell` class containing position, size, row, and column.
+4. Write `createGrid()` with one loop for three rows and another for columns.
+5. Do not create grid cells inside the menu bar.
+6. Write `handleGrid()` to draw hover outlines and the center dividing line.
+7. Create plain card objects for Warrior and Archer.
+8. Draw card names, temporary colored icons, and costs in `drawMenu()`.
+9. Add `selectedBlueType` and change it when a card is clicked.
+10. Convert a battlefield click into lane `0`, `1`, or `2`.
+11. Reject clicks in the menu, on the red half, and outside the canvas.
+12. Temporarily log `{ team, type, lane }` to confirm input.
 
 ### Checkpoint
 
