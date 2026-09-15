@@ -18,9 +18,9 @@ const archerType = "archer";
 const warriorCost = 40;
 const archerCost = 60;
 
-const cardY = 12
-const cardWidth = 112
-const cardHeight = 76
+const cardY = 12;
+const cardWidth = 112;
+const cardHeight = 76;
 
 // ACTIVE GAME OBJECTS
 const gameGrid = [];
@@ -101,18 +101,6 @@ function getLaneFromY(y) {
   return lane;
 }
 
-function getUnitCost(type) {
-  if (type === warriorType) {
-    return warriorCost;
-  }
-
-  if (type === archerType) {
-    return archerCost;
-  }
-
-  return 0;
-}
-
 function isPointInsideBox(point, box) {
   if (
     point.x >= box.x &&
@@ -124,6 +112,18 @@ function isPointInsideBox(point, box) {
   }
 
   return false;
+}
+
+function getUnitCost(type) {
+  if (type === warriorType) {
+    return warriorCost;
+  }
+
+  if (type === archerType) {
+    return archerCost;
+  }
+
+  return 0;
 }
 
 // GRID
@@ -192,7 +192,6 @@ function drawBackground() {
   ctx.fillStyle = "#263951";
   ctx.fillRect(0, 0, canvasWidth, menuHeight);
 }
-
 
 function drawLaneLabels() {
   ctx.fillStyle = "rgba(22, 50, 28, 0.55)";
@@ -289,7 +288,6 @@ function handleCanvasClick() {
 
   const gridPositionX = mouse.x - (mouse.x % columnWidth);
   const lane = getLaneFromY(mouse.y);
-
   if (lane !== -1) {
     console.log({
       team: blueTeam,
@@ -308,8 +306,8 @@ function animate() {
   drawBackground();
   handleGrid();
   drawMenu();
-  drawLaneLabels()
+  drawLaneLabels();
   requestAnimationFrame(animate);
 }
-createGrid()
-animate()
+createGrid();
+animate();
