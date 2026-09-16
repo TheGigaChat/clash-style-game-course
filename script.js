@@ -13,10 +13,19 @@ canvas.height = canvasHeight;
 
 // GAME CONSTANTS
 const blueTeam = "blue";
+const redTeam = "red";
 const warriorType = "warrior";
 const archerType = "archer";
 const warriorCost = 40;
 const archerCost = 60;
+const blueSpawnX = 112;
+const redSpawnX = 818;
+const unitWidth = 70;
+const unitHeight = 70;
+const warriorHealth = 140;
+const warriorSpeed = 0.7;
+const archerHealth = 80;
+const archerSpeed = 0.55;
 
 const cardY = 12;
 const cardWidth = 112;
@@ -24,9 +33,11 @@ const cardHeight = 76;
 
 // ACTIVE GAME OBJECTS
 const gameGrid = [];
+const units = [];
 
 // GAME STATE
 let selectedBlueType = warriorType;
+let debugRedLane = 0;
 
 // MOUSE INPUT
 const mouse = {
@@ -86,6 +97,10 @@ const blueArcherCard = {
 };
 
 // SMALL HELPER FUNCTIONS
+function getYFromLane(lane) {
+  return menuHeight + lane * laneHeight + (laneHeight - unitHeight) / 2;
+}
+
 function getLaneFromY(y) {
   if (y < menuHeight) {
     return -1;
@@ -164,6 +179,107 @@ function handleGrid() {
     gameGrid[i].draw();
   }
 }
+
+// UNITS
+class Unit {
+  constructor(team, type, lane) {
+    this.team = team;
+    this.type = type;
+    this.lane = lane;
+    this.x = blueSpawnX;
+    this.y = getYFromLane(lane);
+    this.width = unitWidth;
+    this.height = unitHeight;
+    this.speed = 0;
+    this.movement = 0;
+    this.health = 0;
+    this.maxHealth = 0;
+    this.state = "walking";
+
+    if (type === warriorType) {
+      this.speed = warriorSpeed;
+      this.health = warriorHealth;
+      this.maxHealth = warriorHealth;
+    }
+
+    if (type === archerType) {
+      this.speed = archerSpeed;
+      this.health = archerHealth;
+      this.maxHealth = archerHealth;
+    }
+
+    if (team === blueTeam) {
+      this.x = blueSpawnX;
+      this.movement = this.speed;
+    }
+
+    if (team === redTeam) {
+      this.x = redSpawnX;
+      this.movement = -this.speed;
+    }
+  }
+
+  update() {
+    this.x += this.movement;
+  }
+
+  draw() {
+    if (this.team === blueTeam) {
+      ctx.fillStyle = "#5f91d8";
+    }
+
+    if (this.team === redTeam) {
+      ctx.fillStyle = "#d8655f";
+    }
+
+    ctx.fillRect(this.x, this.y, this.width, this.height);
+
+    ctx.fillStyle = "#ffffff";
+    ctx.font = "bold 13px Arial";
+    ctx.textAlign = "center";
+    ctx.fillText(this.type, this.x + this.width / 2, this.y + this.height / 2 + 5);
+
+    const healthBarWidth = this.width;
+    const healthBarHeight = 7;
+    const healthPercentage = this.health / this.maxHealth;
+
+    ctx.fillStyle = "rgba(31, 42, 58, 0.82)";
+    ctx.fillRect(this.x, this.y - 12, healthBarWidth, healthBarHeight);
+
+    ctx.fillStyle = "#7ee081";
+    ctx.fillRect(
+      this.x,
+      this.y - 12,
+      healthBarWidth * healthPercentage,
+      healthBarHeight
+    );
+  }
+}
+
+function spawnUnit(team, type, lane) {
+  if (team !== blueTeam && team !== redTeam) {
+    return;
+  }
+
+  if (type !== warriorType && type !== archerType) {
+    return;
+  }
+
+  if (lane < 0 || lane >= laneCount) {
+    return;
+  }
+
+  const unit = new Unit(team, type, lane);
+  units.push(unit);
+}
+
+function handleUnits() {
+  for (let i = 0; i < units.length; i++) {
+    units[i].update();
+    units[i].draw();
+  }
+}
+
 
 // BACKGROUND
 function drawBackground() {
@@ -286,19 +402,25 @@ function handleCanvasClick() {
     return;
   }
 
-  const gridPositionX = mouse.x - (mouse.x % columnWidth);
   const lane = getLaneFromY(mouse.y);
+
   if (lane !== -1) {
-    console.log({
-      team: blueTeam,
-      type: selectedBlueType,
-      lane: lane,
-      column: gridPositionX / columnWidth,
-    });
+    spawnUnit(blueTeam, selectedBlueType, lane);
   }
 }
 
 canvas.addEventListener("click", handleCanvasClick);
+
+window.addEventListener("keydown", function (event) {
+  if (event.key === "r" || event.key === "R") {
+    spawnUnit(redTeam, warriorType, debugRedLane);
+
+    debugRedLane++;
+    if (debugRedLane >= laneCount) {
+      debugRedLane = 0;
+    }
+  }
+});
 
 // MAIN GAME LOOP
 function animate() {
@@ -307,6 +429,7 @@ function animate() {
   handleGrid();
   drawMenu();
   drawLaneLabels();
+  handleUnits();
   requestAnimationFrame(animate);
 }
 createGrid();
