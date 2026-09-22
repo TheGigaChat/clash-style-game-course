@@ -23,9 +23,16 @@ const redSpawnX = 818;
 const unitWidth = 70;
 const unitHeight = 70;
 const warriorHealth = 140;
+const warriorDamage = 20;
+const warriorRange = 18;
+const warriorAttackInterval = 45;
 const warriorSpeed = 0.7;
 const archerHealth = 80;
+const archerDamage = 12;
+const archerRange = 18;
+const archerAttackInterval = 55;
 const archerSpeed = 0.55;
+const friendlyGap = 14;
 
 const cardY = 12;
 const cardWidth = 112;
@@ -38,6 +45,7 @@ const units = [];
 // GAME STATE
 let selectedBlueType = warriorType;
 let debugRedLane = 0;
+let nextUnitId = 0;
 
 // MOUSE INPUT
 const mouse = {
@@ -141,6 +149,44 @@ function getUnitCost(type) {
   return 0;
 }
 
+function isTargetInFront(unit, target) {
+  if (unit.team === blueTeam && target.x >= unit.x) {
+    return true;
+  }
+
+  if (unit.team === redTeam && target.x <= unit.x) {
+    return true;
+  }
+
+  return false;
+}
+
+function getDistanceInFront(unit, target) {
+  let distance = 0;
+
+  if (unit.team === blueTeam) {
+    distance = target.x - (unit.x + unit.width);
+  }
+
+  if (unit.team === redTeam) {
+    distance = unit.x - (target.x + target.width);
+  }
+
+  if (distance < 0) {
+    distance = 0;
+  }
+
+  return distance;
+}
+
+function clampHealth(health) {
+  if (health < 0) {
+    return 0;
+  }
+
+  return health;
+}
+
 // GRID
 class Cell {
   constructor(x, y, row, column) {
@@ -183,6 +229,8 @@ function handleGrid() {
 // UNITS
 class Unit {
   constructor(team, type, lane) {
+    this.id = nextUnitId;
+    nextUnitId++;
     this.team = team;
     this.type = type;
     this.lane = lane;
@@ -194,18 +242,30 @@ class Unit {
     this.movement = 0;
     this.health = 0;
     this.maxHealth = 0;
+    this.damage = 0;
+    this.range = 0;
+    this.attackInterval = 0;
+    this.attackTimer = 0;
+    this.target = null;
     this.state = "walking";
+    this.lastHitTeam = "";
 
     if (type === warriorType) {
       this.speed = warriorSpeed;
       this.health = warriorHealth;
       this.maxHealth = warriorHealth;
+      this.damage = warriorDamage;
+      this.range = warriorRange;
+      this.attackInterval = warriorAttackInterval;
     }
 
     if (type === archerType) {
       this.speed = archerSpeed;
       this.health = archerHealth;
       this.maxHealth = archerHealth;
+      this.damage = archerDamage;
+      this.range = archerRange;
+      this.attackInterval = archerAttackInterval;
     }
 
     if (team === blueTeam) {
@@ -220,6 +280,36 @@ class Unit {
   }
 
   update() {
+    this.target = findUnitTarget(this);
+
+    if (this.target !== null) {
+      this.state = "attacking";
+      this.movement = 0;
+      this.attackTimer++;
+
+      if (this.attackTimer >= this.attackInterval) {
+        this.target.health -= this.damage;
+        this.target.lastHitTeam = this.team;
+        this.attackTimer = 0;
+      } 
+    } else {
+      this.state = "walking";
+      this.attackTimer = 0;
+
+      if (this.team === blueTeam) {
+        this.movement = this.speed;
+      }
+
+      if (this.team === redTeam) {
+        this.movement = -this.speed;
+      }
+
+      if (isBlockedByFriendlyUnit(this)) {
+        this.state = "idle";
+        this.movement = 0;
+      }
+    }
+
     this.x += this.movement;
   }
 
@@ -241,7 +331,8 @@ class Unit {
 
     const healthBarWidth = this.width;
     const healthBarHeight = 7;
-    const healthPercentage = this.health / this.maxHealth;
+    const safeHealth = clampHealth(this.health);
+    let healthPercentage = safeHealth / this.maxHealth;
 
     ctx.fillStyle = "rgba(31, 42, 58, 0.82)";
     ctx.fillRect(this.x, this.y - 12, healthBarWidth, healthBarHeight);
@@ -254,6 +345,88 @@ class Unit {
       healthBarHeight
     );
   }
+}
+
+function findUnitTarget(unit) {
+  let closestTarget = null;
+  let closestDistance = 999999;
+
+  for (let i = 0; i < units.length; i++) {
+    const possibleTarget = units[i];
+
+    if (possibleTarget === unit) {
+      continue;
+    }
+
+    if (possibleTarget.team === unit.team) {
+      continue;
+    }
+
+    if (possibleTarget.lane !== unit.lane) {
+      continue;
+    }
+
+    if (possibleTarget.health <= 0) {
+      continue;
+    }
+
+    if (!isTargetInFront(unit, possibleTarget)) {
+      continue;
+    }
+
+    const distance = getDistanceInFront(unit, possibleTarget);
+
+    if (distance <= unit.range && distance < closestDistance) {
+      closestTarget = possibleTarget;
+      closestDistance = distance;
+    }
+  }
+
+  return closestTarget;
+}
+
+function isBlockedByFriendlyUnit(unit) {
+  for (let i = 0; i < units.length; i++) {
+    const possibleBlocker = units[i];
+
+    if (possibleBlocker === unit) {
+      continue;
+    }
+
+    if (possibleBlocker.team !== unit.team) {
+      continue;
+    }
+
+    if (possibleBlocker.lane !== unit.lane) {
+      continue;
+    }
+
+    let blockerIsInFront = false;
+
+    if (unit.team === blueTeam && possibleBlocker.x > unit.x) {
+      blockerIsInFront = true;
+    }
+
+    if (unit.team === redTeam && possibleBlocker.x < unit.x) {
+      blockerIsInFront = true;
+    }
+
+    if (possibleBlocker.x === unit.x && possibleBlocker.id < unit.id) {
+      blockerIsInFront = true;
+    }
+
+    if (!blockerIsInFront) {
+      continue;
+    }
+
+    const distance = getDistanceInFront(unit, possibleBlocker);
+
+    if (distance <= friendlyGap) {
+      return true;
+    }
+  }
+
+  return false;
 }
 
 function spawnUnit(team, type, lane) {
@@ -275,8 +448,13 @@ function spawnUnit(team, type, lane) {
 
 function handleUnits() {
   for (let i = 0; i < units.length; i++) {
-    units[i].update();
-    units[i].draw();
+    if (units[i].health > 0) {
+      units[i].update();
+      units[i].draw();
+    } else {
+      units.splice(i, 1);
+      i--;
+    }
   }
 }
 
