@@ -291,7 +291,7 @@ class Unit {
         this.target.health -= this.damage;
         this.target.lastHitTeam = this.team;
         this.attackTimer = 0;
-      } 
+      }
     } else {
       this.state = "walking";
       this.attackTimer = 0;
