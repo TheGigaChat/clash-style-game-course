@@ -29,9 +29,12 @@ const warriorAttackInterval = 45;
 const warriorSpeed = 0.7;
 const archerHealth = 80;
 const archerDamage = 12;
-const archerRange = 18;
+const archerRange = 220;
 const archerAttackInterval = 55;
 const archerSpeed = 0.55;
+const arrowSpeed = 6;
+const arrowWidth = 32;
+const arrowHeight = 10;
 const friendlyGap = 14;
 
 const cardY = 12;
@@ -41,8 +44,10 @@ const cardHeight = 76;
 // ACTIVE GAME OBJECTS
 const gameGrid = [];
 const units = [];
+const arrows = [];
 
 // GAME STATE
+let showHitboxes = false;
 let selectedBlueType = warriorType;
 let debugRedLane = 0;
 let nextUnitId = 0;
@@ -187,6 +192,19 @@ function clampHealth(health) {
   return health;
 }
 
+function isColliding(first, second) {
+  if (
+    first.x < second.x + second.width &&
+    first.x + first.width > second.x &&
+    first.y < second.y + second.height &&
+    first.y + first.height > second.y
+  ) {
+    return true;
+  }
+
+  return false;
+}
+
 // GRID
 class Cell {
   constructor(x, y, row, column) {
@@ -288,8 +306,7 @@ class Unit {
       this.attackTimer++;
 
       if (this.attackTimer >= this.attackInterval) {
-        this.target.health -= this.damage;
-        this.target.lastHitTeam = this.team;
+        this.attack()
         this.attackTimer = 0;
       }
     } else {
@@ -311,6 +328,28 @@ class Unit {
     }
 
     this.x += this.movement;
+  }
+
+  attack() {
+    // melee combat unit types
+    if (this.type === warriorType) {
+      this.target.health -= this.damage;
+      this.target.lastHitTeam = this.team;
+    }
+
+    // distance combat unit types
+    if (this.type === archerType) {
+      const arrowX = this.x + this.width / 2;
+      const arrowY = this.y + this.height / 2;
+      const arrow = new Arrow(
+        this.team,
+        this.lane,
+        arrowX,
+        arrowY,
+        this.damage
+      );
+      arrows.push(arrow);
+    }
   }
 
   draw() {
@@ -344,6 +383,48 @@ class Unit {
       healthBarWidth * healthPercentage,
       healthBarHeight
     );
+  }
+}
+
+// PROJECTILES
+class Arrow {
+  constructor(team, lane, x, y, damage) {
+    this.team = team;
+    this.lane = lane;
+    this.x = x;
+    this.y = y - arrowHeight / 2;
+    this.width = arrowWidth;
+    this.height = arrowHeight;
+    this.damage = damage;
+    this.speed = 0;
+    this.direction = 0;
+    this.remove = false;
+
+    if (team === blueTeam) {
+      this.speed = arrowSpeed;
+      this.direction = 1;
+    }
+
+    if (team === redTeam) {
+      this.speed = arrowSpeed;
+      this.direction = -1;
+      this.x -= this.width;
+    }
+  }
+
+  update() {
+    this.x += this.speed * this.direction;
+  }
+
+  draw() {
+    ctx.fillStyle = "#f5e3a1";
+    ctx.fillRect(this.x, this.y, this.width, this.height);
+
+    if (showHitboxes) {
+      ctx.strokeStyle = "#ff00ff";
+      ctx.lineWidth = 2;
+      ctx.strokeRect(this.x, this.y, this.width, this.height);
+    }
   }
 }
 
@@ -458,6 +539,49 @@ function handleUnits() {
   }
 }
 
+function handleArrows() {
+  for (let i = 0; i < arrows.length; i++) {
+    const arrow = arrows[i];
+    arrow.update();
+
+    for (let j = 0; j < units.length; j++) {
+      const possibleTarget = units[j];
+
+      if (possibleTarget.team === arrow.team) {
+        continue;
+      }
+
+      if (possibleTarget.lane !== arrow.lane) {
+        continue;
+      }
+
+      if (possibleTarget.health <= 0) {
+        continue;
+      }
+
+      if (isColliding(arrow, possibleTarget)) {
+        possibleTarget.health -= arrow.damage;
+        possibleTarget.lastHitTeam = arrow.team;
+        arrow.remove = true;
+        break;
+      }
+    }
+
+    if (arrow.x + arrow.width < 0 || arrow.x > canvasWidth) {
+      arrow.remove = true;
+    }
+
+    if (!arrow.remove) {
+      arrow.draw();
+    }
+  }
+
+  for (let i = arrows.length - 1; i >= 0; i--) {
+    if (arrows[i].remove) {
+      arrows.splice(i, 1);
+    }
+  }
+}
 
 // BACKGROUND
 function drawBackground() {
@@ -598,6 +722,15 @@ window.addEventListener("keydown", function (event) {
       debugRedLane = 0;
     }
   }
+
+  if (event.key === "a" || event.key === "A") {
+    spawnUnit(redTeam, archerType, debugRedLane);
+
+    debugRedLane++;
+    if (debugRedLane >= laneCount) {
+      debugRedLane = 0;
+    }
+  }
 });
 
 // MAIN GAME LOOP
@@ -608,6 +741,7 @@ function animate() {
   drawMenu();
   drawLaneLabels();
   handleUnits();
+  handleArrows();
   requestAnimationFrame(animate);
 }
 createGrid();
