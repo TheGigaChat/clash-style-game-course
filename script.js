@@ -307,7 +307,6 @@ function getEnemyTower(team) {
   if (team === redTeam) {
     return leftTower;
   }
-  // console.error("ERROR uknown tower inside of the getEnemyTower function.")
   return null;
 }
 
@@ -407,7 +406,7 @@ class Unit {
   }
 
   attack() {
-    if (gameState !== "playing" || this.target === null) {
+    if (gameState !== "playing") {
       return;
     }
 
@@ -496,6 +495,7 @@ class Arrow {
     if (gameState !== "playing") {
       return;
     }
+
     this.x += this.speed * this.direction;
   }
 
@@ -557,6 +557,7 @@ function findTarget(unit) {
       return enemyTower;
     }
   }
+
   return null;
 }
 
@@ -608,6 +609,7 @@ function spawnUnit(team, type, lane) {
   if (gameState !== "playing") {
     return;
   }
+
   if (team !== blueTeam && team !== redTeam) {
     return;
   }
@@ -795,6 +797,7 @@ function handleCanvasClick() {
   if (gameState !== "playing") {
     return;
   }
+
   if (mouse.x === undefined || mouse.y === undefined) {
     return;
   }
@@ -830,6 +833,7 @@ window.addEventListener("keydown", function (event) {
   if (gameState !== "playing") {
     return;
   }
+
   if (event.key === "r" || event.key === "R") {
     spawnUnit(redTeam, warriorType, debugRedLane);
 
