@@ -36,6 +36,10 @@ const arrowSpeed = 6;
 const arrowWidth = 32;
 const arrowHeight = 10;
 const friendlyGap = 14;
+const towerHealth = 1000;
+const towerWidth = 100;
+const towerVisibleWidth = 76;
+const towerVisibleHeight = 400;
 
 const cardY = 12;
 const cardWidth = 112;
@@ -47,6 +51,8 @@ const units = [];
 const arrows = [];
 
 // GAME STATE
+let gameState = "playing";
+let winner = "";
 let showHitboxes = false;
 let selectedBlueType = warriorType;
 let debugRedLane = 0;
@@ -244,6 +250,71 @@ function handleGrid() {
   }
 }
 
+// TOWERS
+class Tower {
+  constructor(team, x) {
+    this.team = team;
+    this.x = x;
+    this.y = menuHeight;
+    this.width = towerWidth;
+    this.height = canvasHeight - menuHeight;
+    this.health = towerHealth;
+    this.maxHealth = towerHealth;
+    this.lastHitTeam = "";
+  }
+
+  draw() {
+    // The visible tower is smaller than its hitbox, which covers all three lanes.
+    const visibleX = this.x + (this.width - towerVisibleWidth) / 2;
+    const visibleY = this.y + (this.height - towerVisibleHeight) / 2;
+
+    if (this.team === blueTeam) {
+      ctx.fillStyle = "#5f91d8";
+    }
+    if (this.team === redTeam) {
+      ctx.fillStyle = "#d8655f";
+    }
+    ctx.fillRect(visibleX, visibleY, towerVisibleWidth, towerVisibleHeight);
+
+    const safeHealth = clampHealth(this.health);
+    const healthPercentage = safeHealth / this.maxHealth;
+
+    ctx.fillStyle = "#263951";
+    ctx.fillRect(visibleX, visibleY - 30, towerVisibleWidth, 10);
+    ctx.fillStyle = "#7ee081";
+    ctx.fillRect(visibleX, visibleY - 30, towerVisibleWidth * healthPercentage, 10);
+    ctx.fillStyle = "#ffffff";
+    ctx.font = "bold 13px Arial";
+    ctx.textAlign = "center";
+    ctx.fillText(safeHealth + " / " + this.maxHealth, this.x + this.width / 2, visibleY - 40);
+    ctx.fillText("Tower", this.x + this.width / 2, visibleY + towerVisibleHeight / 2);
+
+    if (showHitboxes) {
+      ctx.strokeStyle = "#ff00ff";
+      ctx.lineWidth = 2;
+      ctx.strokeRect(this.x, this.y, this.width, this.height);
+    }
+  }
+}
+
+const leftTower = new Tower(blueTeam, 0);
+const rightTower = new Tower(redTeam, canvasWidth - towerWidth);
+
+function getEnemyTower(team) {
+  if (team === blueTeam) {
+    return rightTower;
+  }
+  if (team === redTeam) {
+    return leftTower;
+  }
+  return null;
+}
+
+function handleTowers() {
+  leftTower.draw();
+  rightTower.draw();
+}
+
 // UNITS
 class Unit {
   constructor(team, type, lane) {
@@ -298,7 +369,11 @@ class Unit {
   }
 
   update() {
-    this.target = findUnitTarget(this);
+    if (gameState !== "playing") {
+      return;
+    }
+
+    this.target = findTarget(this);
 
     if (this.target !== null) {
       this.state = "attacking";
@@ -306,7 +381,7 @@ class Unit {
       this.attackTimer++;
 
       if (this.attackTimer >= this.attackInterval) {
-        this.attack()
+        this.attack();
         this.attackTimer = 0;
       }
     } else {
@@ -331,6 +406,10 @@ class Unit {
   }
 
   attack() {
+    if (gameState !== "playing") {
+      return;
+    }
+
     // melee combat unit types
     if (this.type === warriorType) {
       this.target.health -= this.damage;
@@ -413,6 +492,10 @@ class Arrow {
   }
 
   update() {
+    if (gameState !== "playing") {
+      return;
+    }
+
     this.x += this.speed * this.direction;
   }
 
@@ -428,7 +511,7 @@ class Arrow {
   }
 }
 
-function findUnitTarget(unit) {
+function findTarget(unit) {
   let closestTarget = null;
   let closestDistance = 999999;
 
@@ -463,7 +546,19 @@ function findUnitTarget(unit) {
     }
   }
 
-  return closestTarget;
+  if (closestTarget !== null) {
+    return closestTarget;
+  }
+
+  const enemyTower = getEnemyTower(unit.team);
+  if (enemyTower.health > 0 && isTargetInFront(unit, enemyTower)) {
+    const towerDistance = getDistanceInFront(unit, enemyTower);
+    if (towerDistance <= unit.range) {
+      return enemyTower;
+    }
+  }
+
+  return null;
 }
 
 function isBlockedByFriendlyUnit(unit) {
@@ -511,6 +606,10 @@ function isBlockedByFriendlyUnit(unit) {
 }
 
 function spawnUnit(team, type, lane) {
+  if (gameState !== "playing") {
+    return;
+  }
+
   if (team !== blueTeam && team !== redTeam) {
     return;
   }
@@ -542,6 +641,10 @@ function handleUnits() {
 function handleArrows() {
   for (let i = 0; i < arrows.length; i++) {
     const arrow = arrows[i];
+    if (gameState !== "playing") {
+      arrow.draw();
+      continue;
+    }
     arrow.update();
 
     for (let j = 0; j < units.length; j++) {
@@ -564,6 +667,15 @@ function handleArrows() {
         possibleTarget.lastHitTeam = arrow.team;
         arrow.remove = true;
         break;
+      }
+    }
+
+    if (!arrow.remove) {
+      const enemyTower = getEnemyTower(arrow.team);
+      if (isColliding(arrow, enemyTower)) {
+        enemyTower.health -= arrow.damage;
+        enemyTower.lastHitTeam = arrow.team;
+        arrow.remove = true;
       }
     }
 
@@ -682,6 +794,10 @@ function drawMenu() {
 
 // PLAYER INPUT
 function handleCanvasClick() {
+  if (gameState !== "playing") {
+    return;
+  }
+
   if (mouse.x === undefined || mouse.y === undefined) {
     return;
   }
@@ -714,6 +830,10 @@ function handleCanvasClick() {
 canvas.addEventListener("click", handleCanvasClick);
 
 window.addEventListener("keydown", function (event) {
+  if (gameState !== "playing") {
+    return;
+  }
+
   if (event.key === "r" || event.key === "R") {
     spawnUnit(redTeam, warriorType, debugRedLane);
 
@@ -733,6 +853,40 @@ window.addEventListener("keydown", function (event) {
   }
 });
 
+// GAME STATUS
+function checkGameOver() {
+  if (gameState !== "playing") {
+    return;
+  }
+
+  if (leftTower.health <= 0) {
+    leftTower.health = 0;
+    winner = redTeam;
+    gameState = "gameOver";
+  } else if (rightTower.health <= 0) {
+    rightTower.health = 0;
+    winner = blueTeam;
+    gameState = "gameOver";
+  }
+}
+
+function drawGameOver() {
+  if (gameState !== "gameOver") {
+    return;
+  }
+
+  ctx.fillStyle = "rgba(0, 0, 0, 0.65)";
+  ctx.fillRect(0, menuHeight, canvasWidth, canvasHeight - menuHeight);
+  ctx.fillStyle = "#ffffff";
+  ctx.font = "bold 36px Arial";
+  ctx.textAlign = "center";
+  let resultText = "Blue wins!";
+  if (winner === redTeam) {
+    resultText = "Red wins!";
+  }
+  ctx.fillText(resultText, canvasWidth / 2, menuHeight + (canvasHeight - menuHeight) / 2);
+}
+
 // MAIN GAME LOOP
 function animate() {
   ctx.clearRect(0, 0, canvasWidth, canvasHeight);
@@ -742,6 +896,9 @@ function animate() {
   drawLaneLabels();
   handleUnits();
   handleArrows();
+  checkGameOver();
+  handleTowers();
+  drawGameOver();
   requestAnimationFrame(animate);
 }
 createGrid();
