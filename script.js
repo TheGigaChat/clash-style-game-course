@@ -18,6 +18,7 @@ const warriorType = "warrior";
 const archerType = "archer";
 const warriorCost = 40;
 const archerCost = 60;
+const startingGold = 180;
 const blueSpawnX = 112;
 const redSpawnX = 818;
 const unitWidth = 70;
@@ -49,10 +50,13 @@ const cardHeight = 76;
 const gameGrid = [];
 const units = [];
 const arrows = [];
+const floatingMessages = [];
 
 // GAME STATE
 let gameState = "playing";
 let winner = "";
+let blueGold = startingGold;
+let redGold = startingGold;
 let showHitboxes = false;
 let selectedBlueType = warriorType;
 let debugRedLane = 0;
@@ -115,6 +119,27 @@ const blueArcherCard = {
   height: cardHeight,
 };
 
+const redWarriorCard = {
+  x: 746,
+  y: cardY,
+  width: cardWidth,
+  height: cardHeight,
+};
+
+const redArcherCard = {
+  x: 868,
+  y: cardY,
+  width: cardWidth,
+  height: cardHeight,
+};
+
+const modeDisplay = {
+  x: 425,
+  y: 18,
+  width: 150,
+  height: 64,
+};
+
 // SMALL HELPER FUNCTIONS
 function getYFromLane(lane) {
   return menuHeight + lane * laneHeight + (laneHeight - unitHeight) / 2;
@@ -158,6 +183,43 @@ function getUnitCost(type) {
   }
 
   return 0;
+}
+
+function getTeamGold(team) {
+  if (team === blueTeam) {
+    return blueGold;
+  }
+  if (team === redTeam) {
+    return redGold;
+  }
+  return 0;
+}
+
+function spendTeamGold(team, amount) {
+  if (team === blueTeam) {
+    blueGold -= amount;
+  }
+  if (team === redTeam) {
+    redGold -= amount;
+  }
+}
+
+function addTeamGold(team, amount) {
+  if (team === blueTeam) {
+    blueGold += amount;
+  }
+  if (team === redTeam) {
+    redGold += amount;
+  }
+}
+
+function getTeamColor(team) {
+  if (team === blueTeam) {
+    return "#7ec8ff";
+  }
+  if (team === redTeam) {
+    return "#ff938d";
+  }
 }
 
 function isTargetInFront(unit, target) {
@@ -511,6 +573,36 @@ class Arrow {
   }
 }
 
+// FLOATING MESSAGES
+class FloatingMessage {
+  constructor(value, x, y, color) {
+    this.value = value;
+    this.x = x;
+    this.y = y;
+    this.color = color;
+    this.life = 0;
+    this.opacity = 1;
+  }
+  
+  update() {
+    this.y -= 0.35;
+    this.life++;
+    this.opacity -= 0.012;
+    if (this.opacity < 0) {
+      this.opacity = 0;
+    }
+  }
+
+  draw() {
+    ctx.globalAlpha = this.opacity;
+    ctx.fillStyle = this.color;
+    ctx.font = "bold 16px Arial";
+    ctx.textAlign = "center";
+    ctx.fillText(this.value, this.x, this.y);
+    ctx.globalAlpha = 1;
+  }
+}
+
 function findTarget(unit) {
   let closestTarget = null;
   let closestDistance = 999999;
@@ -605,6 +697,43 @@ function isBlockedByFriendlyUnit(unit) {
   return false;
 }
 
+function isSpawnBlocked(team, lane) {
+  let spawnX = blueSpawnX;
+  if (team === redTeam) {
+    spawnX = redSpawnX;
+  }
+  const spawnBox = {
+    x: spawnX - friendlyGap,
+    y: getYFromLane(lane),
+    width: unitWidth + friendlyGap * 2,
+    height: unitHeight,
+  };
+
+  for (let i = 0; i < units.length; i++) {
+    const unit = units[i];
+    if (unit.health <= 0) {
+      continue;
+    }
+    if (unit.team === team &&
+        unit.lane === lane &&
+        isColliding(spawnBox, unit)
+      ) {
+      return true;
+    }
+  }
+  return false;
+}
+
+function showDeploymentMessage(team, lane, value) {
+  let messageX = 220;
+  if (team === redTeam) {
+    messageX = canvasWidth - 220;
+  }
+  floatingMessages.push(
+    new FloatingMessage(value, messageX, getYFromLane(lane) - 20, "#ffe08a")
+  );
+}
+
 function spawnUnit(team, type, lane) {
   if (gameState !== "playing") {
     return;
@@ -622,8 +751,37 @@ function spawnUnit(team, type, lane) {
     return;
   }
 
+  const cost = getUnitCost(type);
+  if (getTeamGold(team) < cost) {
+    showDeploymentMessage(team, lane, "Not enough gold");
+    return;
+  }
+  if (isSpawnBlocked(team, lane)) {
+    showDeploymentMessage(team, lane, "Spawn is blocked");
+    return;
+  }
+
+  spendTeamGold(team, cost);
+
   const unit = new Unit(team, type, lane);
   units.push(unit);
+}
+
+function rewardUnitDefeat(unit) {
+  if (unit.lastHitTeam !== blueTeam && unit.lastHitTeam !== redTeam) {
+    return;
+  }
+  const reward = Math.floor(unit.maxHealth / 5);
+  addTeamGold(unit.lastHitTeam, reward);
+  floatingMessages.push(
+    new FloatingMessage(
+      "+" + reward + " gold",
+      unit.x + unit.width / 2,
+      unit.y,
+      getTeamColor(unit.lastHitTeam)
+    )
+  );
+  unit.lastHitTeam = "";
 }
 
 function handleUnits() {
@@ -632,6 +790,7 @@ function handleUnits() {
       units[i].update();
       units[i].draw();
     } else {
+      rewardUnitDefeat(units[i]);
       units.splice(i, 1);
       i--;
     }
@@ -691,6 +850,18 @@ function handleArrows() {
   for (let i = arrows.length - 1; i >= 0; i--) {
     if (arrows[i].remove) {
       arrows.splice(i, 1);
+    }
+  }
+}
+
+function handleFloatingMessages() {
+  for (let i = 0; i < floatingMessages.length; i++) {
+    const message = floatingMessages[i];
+    message.update();
+    message.draw();
+    if (message.life >= 85) {
+      floatingMessages.splice(i, 1);
+      i--;
     }
   }
 }
@@ -790,6 +961,29 @@ function drawMenu() {
     archerType,
     selectedBlueType === archerType
   );
+
+  drawCard(redWarriorCard, warriorType, false);
+  drawCard(redArcherCard, archerType, false);
+
+  ctx.fillStyle = "#16263b";
+  ctx.fillRect(modeDisplay.x, modeDisplay.y, modeDisplay.width, modeDisplay.height);
+  ctx.strokeStyle = "#9fb3ca";
+  ctx.lineWidth = 2;
+  ctx.strokeRect(modeDisplay.x, modeDisplay.y, modeDisplay.width, modeDisplay.height);
+  ctx.textAlign = "center";
+  ctx.fillStyle = "#ffffff";
+  ctx.font = "bold 17px Arial";
+  ctx.fillText("TEST", modeDisplay.x + modeDisplay.width / 2, modeDisplay.y + 27);
+
+  ctx.fillStyle = "#7ec8ff";
+  ctx.font = "bold 17px Arial";
+  ctx.fillText("Blue: " + blueGold, 330, 34);
+  ctx.fillStyle = "#ff938d";
+  ctx.fillText("Red: " + redGold, 670, 34);
+  ctx.fillStyle = "#dce8f6";
+  ctx.font = "13px Arial";
+  ctx.fillText("Tower " + clampHealth(leftTower.health), 330, 62);
+  ctx.fillText("Tower " + clampHealth(rightTower.health), 670, 62);
 }
 
 // PLAYER INPUT
@@ -898,6 +1092,7 @@ function animate() {
   handleArrows();
   checkGameOver();
   handleTowers();
+  handleFloatingMessages();
   drawGameOver();
   requestAnimationFrame(animate);
 }
