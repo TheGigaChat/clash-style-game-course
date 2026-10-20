@@ -54,12 +54,17 @@ const floatingMessages = [];
 
 // GAME STATE
 let gameState = "playing";
+let gameMode = "ai";
 let winner = "";
 let blueGold = startingGold;
 let redGold = startingGold;
 let showHitboxes = false;
 let selectedBlueType = warriorType;
 let debugRedLane = 0;
+let aiTimer = 0;
+let aiInterval = 180;
+let incomeTimer = 0;
+const incomeInterval = 240;
 let nextUnitId = 0;
 
 // MOUSE INPUT
@@ -736,35 +741,36 @@ function showDeploymentMessage(team, lane, value) {
 
 function spawnUnit(team, type, lane) {
   if (gameState !== "playing") {
-    return;
+    return false;
   }
 
   if (team !== blueTeam && team !== redTeam) {
-    return;
+    return false;
   }
 
   if (type !== warriorType && type !== archerType) {
-    return;
+    return false;
   }
 
   if (lane < 0 || lane >= laneCount) {
-    return;
+    return false;
   }
 
   const cost = getUnitCost(type);
   if (getTeamGold(team) < cost) {
     showDeploymentMessage(team, lane, "Not enough gold");
-    return;
+    return false;
   }
   if (isSpawnBlocked(team, lane)) {
     showDeploymentMessage(team, lane, "Spawn is blocked");
-    return;
+    return false;
   }
 
   spendTeamGold(team, cost);
 
   const unit = new Unit(team, type, lane);
   units.push(unit);
+  return true;
 }
 
 function rewardUnitDefeat(unit) {
@@ -1023,29 +1029,99 @@ function handleCanvasClick() {
 
 canvas.addEventListener("click", handleCanvasClick);
 
-window.addEventListener("keydown", function (event) {
+// window.addEventListener("keydown", function (event) {
+//   if (gameState !== "playing") {
+//     return;
+//   }
+
+//   if (event.key === "r" || event.key === "R") {
+//     spawnUnit(redTeam, warriorType, debugRedLane);
+
+//     debugRedLane++;
+//     if (debugRedLane >= laneCount) {
+//       debugRedLane = 0;
+//     }
+//   }
+
+//   if (event.key === "a" || event.key === "A") {
+//     spawnUnit(redTeam, archerType, debugRedLane);
+
+//     debugRedLane++;
+//     if (debugRedLane >= laneCount) {
+//       debugRedLane = 0;
+//     }
+//   }
+// });
+
+// OPPONENT AI
+
+function chooseAiLane() {
+  let selectedLane = Math.floor(Math.random() * laneCount);
+  let closestBlueUnitToRedTowerX = -1;
+
+  if (Math.random() < 0.55) {
+    for (let i = 0; i < units.length; i++) {
+      const unit = units[i];
+      if (unit.team === blueTeam && unit.health > 0 && unit.x > closestBlueUnitToRedTowerX) {
+        closestBlueUnitToRedTowerX = unit.x;
+        selectedLane = unit.lane;
+      }
+    }
+  }
+  return selectedLane;
+}
+
+function chooseAiUnit() {
+  if (redGold < warriorCost) {
+    return "";
+  }
+  if (redGold >= archerCost && Math.random() < 0.45) {
+    return archerType;
+  }
+  return warriorType;
+}
+
+function handleAi() {
+  if (gameMode !== "ai") {
+    return;
+  }
   if (gameState !== "playing") {
     return;
   }
 
-  if (event.key === "r" || event.key === "R") {
-    spawnUnit(redTeam, warriorType, debugRedLane);
-
-    debugRedLane++;
-    if (debugRedLane >= laneCount) {
-      debugRedLane = 0;
-    }
+  aiTimer++;
+  if (aiTimer < aiInterval) {
+    return;
   }
 
-  if (event.key === "a" || event.key === "A") {
-    spawnUnit(redTeam, archerType, debugRedLane);
-
-    debugRedLane++;
-    if (debugRedLane >= laneCount) {
-      debugRedLane = 0;
-    }
+  const aiUnitType = chooseAiUnit();
+  if (aiUnitType === "") {
+    aiTimer = aiInterval - 30;
+    return;
   }
-});
+  const aiLane = chooseAiLane();
+  const unitWasCreated = spawnUnit(redTeam, aiUnitType, aiLane);
+
+  if (unitWasCreated) {
+    aiTimer = 0;
+    aiInterval = 145 + Math.floor(Math.random() * 90);  // 145 - 235
+  } else {
+    aiTimer = aiInterval - 35;
+  }
+}
+
+function handlePassiveIncome() {
+  if (gameState !== "playing") {
+    return;
+  }
+
+  incomeTimer++;
+  if (incomeTimer >= incomeInterval) {
+    blueGold += 5;
+    redGold += 5;
+    incomeTimer = 0;
+  }
+}
 
 // GAME STATUS
 function checkGameOver() {
@@ -1086,8 +1162,10 @@ function animate() {
   ctx.clearRect(0, 0, canvasWidth, canvasHeight);
   drawBackground();
   handleGrid();
+  handlePassiveIncome();
   drawMenu();
   drawLaneLabels();
+  handleAi();
   handleUnits();
   handleArrows();
   checkGameOver();
