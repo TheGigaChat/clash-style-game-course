@@ -25,13 +25,13 @@ const unitWidth = 70;
 const unitHeight = 70;
 const warriorHealth = 140;
 const warriorDamage = 20;
-const warriorRange = 18;
-const warriorAttackInterval = 45;
+const warriorRange = 22;
+const warriorAttackInterval = 36;
 const warriorSpeed = 0.7;
 const archerHealth = 80;
-const archerDamage = 12;
+const archerDamage = 15;
 const archerRange = 220;
-const archerAttackInterval = 55;
+const archerAttackInterval = 72;
 const archerSpeed = 0.55;
 const arrowSpeed = 6;
 const arrowWidth = 32;
@@ -39,12 +39,57 @@ const arrowHeight = 10;
 const friendlyGap = 14;
 const towerHealth = 1000;
 const towerWidth = 100;
-const towerVisibleWidth = 76;
-const towerVisibleHeight = 400;
+const towerVisibleWidth = 128;
+const towerVisibleHeight = 256;
+const spriteFrameSize = 192;
+const unitDrawSize = 118;
+const animationInterval = 9;
+const terrainTileSize = 64;
 
 const cardY = 12;
 const cardWidth = 112;
 const cardHeight = 76;
+
+// IMAGE LOADING
+const assetFolder = "Tiny Swords (Free Pack)/";
+
+function createImage(filePath) {
+  const image = new Image();
+  image.src = assetFolder + filePath;
+  return image;
+}
+const unitImages = {
+  blue: {
+    warrior: {
+      idle: createImage("Units/Blue Units/Warrior/Warrior_Idle.png"),
+      walking: createImage("Units/Blue Units/Warrior/Warrior_Run.png"),
+      attacking: createImage("Units/Blue Units/Warrior/Warrior_Attack1.png"),
+    },
+    archer: {
+      idle: createImage("Units/Blue Units/Archer/Archer_Idle.png"),
+      walking: createImage("Units/Blue Units/Archer/Archer_Run.png"),
+      attacking: createImage("Units/Blue Units/Archer/Archer_Shoot.png"),
+    },
+  },
+  red: {
+    warrior: {
+      idle: createImage("Units/Red Units/Warrior/Warrior_Idle.png"),
+      walking: createImage("Units/Red Units/Warrior/Warrior_Run.png"),
+      attacking: createImage("Units/Red Units/Warrior/Warrior_Attack1.png"),
+    },
+    archer: {
+      idle: createImage("Units/Red Units/Archer/Archer_Idle.png"),
+      walking: createImage("Units/Red Units/Archer/Archer_Run.png"),
+      attacking: createImage("Units/Red Units/Archer/Archer_Shoot.png"),
+    },
+  },
+};
+const towerImages = {
+  blue: createImage("Buildings/Blue Buildings/Tower.png"),
+  red: createImage("Buildings/Red Buildings/Tower.png"),
+};
+const arrowImage = createImage("Units/Blue Units/Archer/Arrow.png");
+const terrainImage = createImage("Terrain/Tileset/Tilemap_color1.png");
 
 // ACTIVE GAME OBJECTS
 const gameGrid = [];
@@ -336,25 +381,22 @@ class Tower {
     const visibleY = this.y + (this.height - towerVisibleHeight) / 2;
 
     if (this.team === blueTeam) {
-      ctx.fillStyle = "#5f91d8";
+      ctx.fillStyle = "rgba(53, 111, 177, 0.72)";
     }
     if (this.team === redTeam) {
-      ctx.fillStyle = "#d8655f";
+      ctx.fillStyle = "rgba(180, 70, 64, 0.72)";
     }
-    ctx.fillRect(visibleX, visibleY, towerVisibleWidth, towerVisibleHeight);
 
-    const safeHealth = clampHealth(this.health);
-    const healthPercentage = safeHealth / this.maxHealth;
+    ctx.fillRect(this.x, this.y, this.width, this.height);
+    ctx.strokeStyle = "rgba(255, 255, 255, 0.35)";
+    ctx.lineWidth = 2;
+    for (let lane = 0; lane < laneCount; lane++) {
+      const lineY = menuHeight + lane * laneHeight;
+      ctx.strokeRect(this.x + 4, lineY + 4, this.width - 8, laneHeight - 8);
+    }
 
-    ctx.fillStyle = "#263951";
-    ctx.fillRect(visibleX, visibleY - 30, towerVisibleWidth, 10);
-    ctx.fillStyle = "#7ee081";
-    ctx.fillRect(visibleX, visibleY - 30, towerVisibleWidth * healthPercentage, 10);
-    ctx.fillStyle = "#ffffff";
-    ctx.font = "bold 13px Arial";
-    ctx.textAlign = "center";
-    ctx.fillText(safeHealth + " / " + this.maxHealth, this.x + this.width / 2, visibleY - 40);
-    ctx.fillText("Tower", this.x + this.width / 2, visibleY + towerVisibleHeight / 2);
+    const image = towerImages[this.team];
+    ctx.drawImage(image, visibleX, visibleY, towerVisibleWidth, towerVisibleHeight);
 
     if (showHitboxes) {
       ctx.strokeStyle = "#ff00ff";
@@ -404,6 +446,10 @@ class Unit {
     this.attackTimer = 0;
     this.target = null;
     this.state = "walking";
+    this.previousState = "walking";
+    this.frameX = 0;
+    this.maxFrame = 0;
+    this.animationTimer = 0;
     this.lastHitTeam = "";
 
     if (type === warriorType) {
@@ -470,6 +516,27 @@ class Unit {
     }
 
     this.x += this.movement;
+    this.updateAnimation();
+  }
+
+  updateAnimation() {
+    const image = getUnitImage(this);
+    this.maxFrame = image.naturalWidth / spriteFrameSize - 1;
+
+    if (this.state !== this.previousState) {
+      this.frameX = 0;
+      this.animationTimer = 0;
+      this.previousState = this.state;
+    }
+
+    this.animationTimer++;
+    if (this.animationTimer >= animationInterval) {
+      this.animationTimer = 0;
+      this.frameX++;
+      if (this.frameX > this.maxFrame) {
+        this.frameX = 0;
+      }
+    }
   }
 
   attack() {
@@ -499,37 +566,75 @@ class Unit {
   }
 
   draw() {
-    if (this.team === blueTeam) {
-      ctx.fillStyle = "#5f91d8";
-    }
+    const image = getUnitImage(this);
+    drawUnitSprite(this, image);
 
-    if (this.team === redTeam) {
-      ctx.fillStyle = "#d8655f";
-    }
-
-    ctx.fillRect(this.x, this.y, this.width, this.height);
-
-    ctx.fillStyle = "#ffffff";
-    ctx.font = "bold 13px Arial";
-    ctx.textAlign = "center";
-    ctx.fillText(this.type, this.x + this.width / 2, this.y + this.height / 2 + 5);
-
-    const healthBarWidth = this.width;
+    const healthBarWidth = this.width - 14;
     const healthBarHeight = 7;
     const safeHealth = clampHealth(this.health);
     let healthPercentage = safeHealth / this.maxHealth;
 
-    ctx.fillStyle = "rgba(31, 42, 58, 0.82)";
-    ctx.fillRect(this.x, this.y - 12, healthBarWidth, healthBarHeight);
+    ctx.fillStyle = "rgba(40, 25, 28, 0.75)";
+    ctx.fillRect(this.x + 7, this.y - 8, healthBarWidth, healthBarHeight);
 
-    ctx.fillStyle = "#7ee081";
+    if (this.team === blueTeam) {
+      ctx.fillStyle = "#5ed4ff";
+    }
+    if (this.team === redTeam) {
+      ctx.fillStyle = "#ff6e68";
+    }
+
     ctx.fillRect(
-      this.x,
-      this.y - 12,
+      this.x + 7,
+      this.y - 8,
       healthBarWidth * healthPercentage,
       healthBarHeight
     );
+
+    if (showHitboxes) {
+      ctx.strokeStyle = "#ff00ff";
+      ctx.lineWidth = 1;
+      ctx.strokeRect(this.x, this.y, this.width, this.height);
+    }
   }
+}
+
+function getUnitImage(unit) {
+  const images = unitImages[unit.team][unit.type];
+  let image = images.idle;
+  if (unit.state === "walking") {
+    image = images.walking;
+  }
+  if (unit.state === "attacking") {
+    image = images.attacking;
+  }
+  return image;
+}
+
+function drawUnitSprite(unit, image) {
+  const unitCenterX = unit.x + unit.width / 2;
+  const unitBottomY = unit.y + unit.height;
+
+  const spriteLeft = unitCenterX - unitDrawSize / 2;  // show figma example
+  const spriteRight = unitCenterX + unitDrawSize / 2;
+  const spriteTop = unitBottomY - unitDrawSize + 20;
+
+  const sourceX = unit.frameX * spriteFrameSize;
+
+  if (unit.team === redTeam) {
+    ctx.translate(spriteRight, spriteTop);
+    ctx.scale(-1, 1);
+  } else {
+    ctx.translate(spriteLeft, spriteTop);
+  }
+
+  ctx.drawImage(
+    image,
+    sourceX, 0, spriteFrameSize, spriteFrameSize,  // Rectangle to copy FROM the sprite sheet
+    0, 0, unitDrawSize, unitDrawSize  // Rectangle to draw TO on the canvas
+  );
+
+  ctx.resetTransform();
 }
 
 // PROJECTILES
@@ -567,8 +672,12 @@ class Arrow {
   }
 
   draw() {
-    ctx.fillStyle = "#f5e3a1";
-    ctx.fillRect(this.x, this.y, this.width, this.height);
+    if (this.team === redTeam) {
+      ctx.translate(this.x * 2 + this.width, 0);
+      ctx.scale(-1, 1);
+    }
+    ctx.drawImage(arrowImage, this.x - 5, this.y - 11, this.width + 10, this.height + 22);
+    ctx.resetTransform();
 
     if (showHitboxes) {
       ctx.strokeStyle = "#ff00ff";
@@ -883,6 +992,14 @@ function drawBackground() {
   ctx.fillStyle = "#91c968";
   ctx.fillRect(0, menuHeight + laneHeight * 2, canvasWidth, laneHeight);
 
+  for (let y = menuHeight; y < canvasHeight; y += terrainTileSize) {
+    for (let x = 0; x < canvasWidth; x += terrainTileSize) {
+      const width = Math.min(terrainTileSize, canvasWidth - x);
+      const height = Math.min(terrainTileSize, canvasHeight - y);
+      ctx.drawImage(terrainImage, 64, 64, width, height, x, y, width, height);
+    }
+  }
+
   ctx.strokeStyle = "rgba(34, 75, 38, 0.5)";
   ctx.lineWidth = 3;
   for (let lane = 1; lane < laneCount; lane++) {
@@ -912,7 +1029,7 @@ function drawLaneLabels() {
 }
 
 // MENU
-function drawCard(card, type, selected) {
+function drawCard(card, team, type, selected) {
   ctx.fillStyle = "rgba(12, 23, 38, 0.82)";
   ctx.fillRect(card.x, card.y, card.width, card.height);
 
@@ -924,19 +1041,9 @@ function drawCard(card, type, selected) {
     ctx.lineWidth = 4;
   }
   
+  const image = unitImages[team][type].idle;
+  ctx.drawImage(image, 0, 0, spriteFrameSize, spriteFrameSize, card.x + 2, card.y + 2, 66, 66);
   ctx.strokeRect(card.x, card.y, card.width, card.height);
-
-  if (type === warriorType) {
-    ctx.fillStyle = "#5f91d8";
-    ctx.fillRect(card.x + 10, card.y + 15, 38, 46);
-  }
-
-  if (type === archerType) {
-    ctx.fillStyle = "#75b86d";
-    ctx.beginPath();
-    ctx.arc(card.x + 29, card.y + 38, 21, 0, Math.PI * 2);
-    ctx.fill();
-  }
 
   ctx.fillStyle = "#ffffff";
   ctx.textAlign = "left";
@@ -958,18 +1065,20 @@ function drawCard(card, type, selected) {
 function drawMenu() {
   drawCard(
     blueWarriorCard,
+    blueTeam,
     warriorType,
     selectedBlueType === warriorType
   );
 
   drawCard(
     blueArcherCard,
+    blueTeam,
     archerType,
     selectedBlueType === archerType
   );
 
-  drawCard(redWarriorCard, warriorType, false);
-  drawCard(redArcherCard, archerType, false);
+  drawCard(redWarriorCard, redTeam, warriorType, false);
+  drawCard(redArcherCard, redTeam, archerType, false);
 
   ctx.fillStyle = "#16263b";
   ctx.fillRect(modeDisplay.x, modeDisplay.y, modeDisplay.width, modeDisplay.height);
