@@ -100,12 +100,15 @@ const floatingMessages = [];
 // GAME STATE
 let gameState = "playing";
 let gameMode = "ai";
+let battleStarted = false;
 let winner = "";
 let blueGold = startingGold;
 let redGold = startingGold;
 let showHitboxes = false;
 let selectedBlueType = warriorType;
 let debugRedLane = 0;
+let selectedRedType = warriorType;
+let selectedRedLane = 1;
 let aiTimer = 0;
 let aiInterval = 180;
 let incomeTimer = 0;
@@ -188,6 +191,13 @@ const modeDisplay = {
   y: 18,
   width: 150,
   height: 64,
+};
+
+const restartButton = {
+  x: 390,
+  y: 410,
+  width: 220,
+  height: 58,
 };
 
 // SMALL HELPER FUNCTIONS
@@ -879,6 +889,7 @@ function spawnUnit(team, type, lane) {
 
   const unit = new Unit(team, type, lane);
   units.push(unit);
+  battleStarted = true;
   return true;
 }
 
@@ -1077,8 +1088,8 @@ function drawMenu() {
     selectedBlueType === archerType
   );
 
-  drawCard(redWarriorCard, redTeam, warriorType, false);
-  drawCard(redArcherCard, redTeam, archerType, false);
+  drawCard(redWarriorCard, redTeam, warriorType, gameMode === "pvp" && selectedRedType === warriorType);
+  drawCard(redArcherCard, redTeam, archerType, gameMode === "pvp" && selectedRedType === archerType);
 
   ctx.fillStyle = "#16263b";
   ctx.fillRect(modeDisplay.x, modeDisplay.y, modeDisplay.width, modeDisplay.height);
@@ -1088,7 +1099,11 @@ function drawMenu() {
   ctx.textAlign = "center";
   ctx.fillStyle = "#ffffff";
   ctx.font = "bold 17px Arial";
-  ctx.fillText("TEST", modeDisplay.x + modeDisplay.width / 2, modeDisplay.y + 27);
+  let modeText = "VS AI";
+  if (gameMode === "pvp") {
+    modeText = "2 PLAYERS";
+  }
+  ctx.fillText(modeText, modeDisplay.x + modeDisplay.width / 2, modeDisplay.y + 38);
 
   ctx.fillStyle = "#7ec8ff";
   ctx.font = "bold 17px Arial";
@@ -1103,11 +1118,29 @@ function drawMenu() {
 
 // PLAYER INPUT
 function handleCanvasClick() {
-  if (gameState !== "playing") {
+  if (mouse.x === undefined || mouse.y === undefined) {
     return;
   }
 
-  if (mouse.x === undefined || mouse.y === undefined) {
+    if (gameState === "gameOver") {
+    if (isPointInsideBox(mouse, restartButton)) {
+      restartGame();
+    }
+    return;
+  }
+
+  if (isPointInsideBox(mouse, modeDisplay)) {
+    if (!battleStarted) {
+      if (gameMode === "ai") {
+        gameMode = "pvp";
+      } else {
+        gameMode = "ai";
+      }
+    } else {
+      floatingMessages.push(
+        new FloatingMessage("Restart to change mode", canvasWidth / 2, menuHeight + 35, "#ffe08a")
+      );
+    }
     return;
   }
 
@@ -1162,6 +1195,34 @@ canvas.addEventListener("click", handleCanvasClick);
 //   }
 // });
 
+window.addEventListener("keydown", function (event) {
+  if (gameMode !== "pvp" || gameState !== "playing") {
+    return;
+  }
+  if (event.key === "ArrowUp" || event.key === "ArrowDown" || event.key === "ArrowLeft") {
+    event.preventDefault();
+  }
+  if (event.repeat) {
+    return;
+  }
+
+  if (event.key === "1") {
+    selectedRedType = warriorType;
+  }
+  if (event.key === "2") {
+    selectedRedType = archerType;
+  }
+  if (event.key === "ArrowUp" && selectedRedLane > 0) {
+    selectedRedLane--;
+  }
+  if (event.key === "ArrowDown" && selectedRedLane < laneCount - 1) {
+    selectedRedLane++;
+  }
+  if (event.key === "ArrowLeft") {
+    spawnUnit(redTeam, selectedRedType, selectedRedLane);
+  }
+});
+
 // OPPONENT AI
 
 function chooseAiLane() {
@@ -1198,6 +1259,10 @@ function handleAi() {
     return;
   }
 
+  if (!battleStarted) {
+    return;
+  }
+
   aiTimer++;
   if (aiTimer < aiInterval) {
     return;
@@ -1220,7 +1285,7 @@ function handleAi() {
 }
 
 function handlePassiveIncome() {
-  if (gameState !== "playing") {
+  if (!battleStarted || gameState !== "playing") {
     return;
   }
 
@@ -1233,6 +1298,30 @@ function handlePassiveIncome() {
 }
 
 // GAME STATUS
+function restartGame() {
+  units.length = 0;
+  arrows.length = 0;
+  floatingMessages.length = 0;
+  leftTower.health = leftTower.maxHealth;
+  rightTower.health = rightTower.maxHealth;
+  leftTower.lastHitTeam = "";
+  rightTower.lastHitTeam = "";
+  blueGold = startingGold;
+  redGold = startingGold;
+  selectedBlueType = warriorType;
+  debugRedLane = 0;
+  selectedRedType = warriorType;
+  selectedRedLane = 1;
+  nextUnitId = 0;
+  aiTimer = 0;
+  aiInterval = 180;
+  incomeTimer = 0;
+  winner = "";
+  battleStarted = false;
+  mouse.clicked = false;
+  gameState = "playing";
+}
+
 function checkGameOver() {
   if (gameState !== "playing") {
     return;
@@ -1264,6 +1353,33 @@ function drawGameOver() {
     resultText = "Red wins!";
   }
   ctx.fillText(resultText, canvasWidth / 2, menuHeight + (canvasHeight - menuHeight) / 2);
+  ctx.fillStyle = "#263951";
+  ctx.fillRect(restartButton.x, restartButton.y, restartButton.width, restartButton.height);
+  ctx.strokeStyle = "#ffffff";
+  ctx.lineWidth = 2;
+  ctx.strokeRect(restartButton.x, restartButton.y, restartButton.width, restartButton.height);
+  ctx.font = "bold 20px Arial";
+  ctx.fillStyle = "#ffffff";
+  ctx.fillText("RESTART", restartButton.x + restartButton.width / 2, restartButton.y + 36);
+}
+
+function drawRedLaneSelector() {
+  if (gameMode !== "pvp") {
+    return;
+  }
+  if (gameState !== "playing") {
+    return;
+  }
+  const selectorY = menuHeight + selectedRedLane * laneHeight;
+  ctx.fillStyle = "rgba(255, 99, 93, 0.11)";
+  ctx.fillRect(canvasWidth / 2, selectorY, canvasWidth / 2, laneHeight);
+  ctx.strokeStyle = "rgba(255, 227, 115, 0.8)";
+  ctx.lineWidth = 4;
+  ctx.strokeRect(canvasWidth - 98, selectorY + 4, 92, laneHeight - 8);
+  ctx.fillStyle = "#fff0b0";
+  ctx.font = "bold 16px Arial";
+  ctx.textAlign = "right";
+  ctx.fillText("RED LANE " + (selectedRedLane + 1), canvasWidth - 112, selectorY + 28);
 }
 
 // MAIN GAME LOOP
@@ -1279,6 +1395,7 @@ function animate() {
   handleArrows();
   checkGameOver();
   handleTowers();
+  drawRedLaneSelector();
   handleFloatingMessages();
   drawGameOver();
   requestAnimationFrame(animate);
